@@ -1,0 +1,173 @@
+// Set of function to handle simple operation with points on an elliptic curve in Montgomery form. In some function we suppose B=1.
+// Note, some of the following functions are not efficient
+
+// Print point in affine coordinate as (x,z)
+printPointxy := function(P)
+
+	Qx := Sprintf("%h",Integers()!P[1]);
+	Qx:=Qx[3..#Qx];
+
+	Qy := Sprintf("%h",Integers()!P[2]);
+	Qy:=Qy[3..#Qy];
+
+	if (#Qx mod 2 eq 1) then
+		Qx := "0" cat Qx;
+	end if;
+
+	if (#Qy mod 2 eq 1) then
+		Qy := "0" cat Qy;
+	end if;
+
+	printf "(%o,%o)\n",Qx,Qy;
+	return 0;
+end function;
+
+// Random point on the ellipti curve with parameters A,B without knowin a generator
+RandMontgomeryPoint := function(A,B,p)
+	
+	F:=GF(p);
+	j:=2;
+	P:=Random(F);
+	j:=Integers()!(P^3+A*P^2+P);
+	while(JacobiSymbol(j,p) ne 1) do
+		P:=Random(F);
+		j:=Integers()!(P^3+A*P^2+P);
+	end while;
+	return [P,F!1];
+
+end function;
+
+// Transform point in affine coordinates, i.e. (x,z) -> (x/z,1)
+MontAffine := function(P,p)
+
+	F := GF(p);
+	if P[2] ne F!1 then
+		P[1] := P[1]*Modinv(Integers()!P[2],p);
+		P[2] := 1;
+	end if;
+	return P;
+
+end function;
+
+// Given P compute -P
+MontNeg := function(P)
+	
+	P[1] := -P[1];
+	return P;
+end function;
+
+// Perform addition between two points P,Q given W = P-Q, p is the order of the field
+MontAdd := function(P,Q,W,p)
+
+	F:=GF(p);
+    S1 := F!(P[1]+P[2]);
+    S2 := F!(P[1]-P[2]);
+    S3 := F!(Q[1]+Q[2]);
+    S4 := F!(Q[1]-Q[2]);
+    S5 := F!(S4*S1);
+    S6 := F!(S3*S2);
+    S1 := F!(S5+S6);
+    S1 := F!(S1^2);
+    S2 := F!(S5-S6);
+    S2 := F!(S2^2);
+    R:=[F!0,F!0];
+    R[1] := F!S1;
+    R[2] := F!W[1]*S2;
+    R[1] := F!R[1]*(R[2]^(-1));
+    R[2] := F!1;
+    return R;
+
+end function;
+
+// given P compute 2P, A is the parameter of the curve, p is the order of the field
+MontDbl := function(P,A,p)
+
+	F:=GF(p);
+	S1 := F!(P[1]+P[2]);
+	S3 := F!(S1^2);
+	S2 := F!(P[1]-F!P[2]);
+	S4 := F!(S2^2);
+	S5 := F!(S3-S4);
+	dblP := [F!0,F!0];
+	dblP[1] := F!S3*S4;
+	S1 := F!(((A+2)/4)*S5);
+	S4 := F!(S4 + S1);
+	dblP[2] := F!S4*S5;
+	return MontAffine(dblP,p);
+
+end function;
+
+// Conditional swap (if b=1) between values of two point P and Q
+MontCSwap := function(P,Q,b)
+
+	if b eq 1 then
+		temp := P;
+		P := Q;
+		Q := temp;
+	end if;
+	return P,Q;
+
+end function;
+
+// compute i-th bit of a scalar n
+getBit := function(n,i)
+
+	shi := ShiftLeft(1,i-1);
+	biw := BitwiseAnd(shi,n);
+	if (biw eq 0) then
+		return 0;
+	else
+		return 1;
+end if;
+
+end function;
+
+// Given a point P and a scalar n, compute nP, A is the parameter of the curve, p is the order of the field.
+MontMul := function(P,n,A,p)
+
+	F := GF(p);
+	if (n eq 0) or (n eq 0) then 
+		return [0,0];
+	end if;
+		R0 := P;
+		R1 := P;
+		R1 := MontDbl(R1,A,p);
+		D := P;
+		nb := Floor(Log(2,n))+1;
+	for i in [(nb-1)..1 by -1] do
+		b := getBit(n,i);
+		P := R1;
+		P := MontAdd(P,R0,D,p);
+		R0,R1 := MontCSwap(R0,R1,b);
+		R1 := P;
+		R0 := MontDbl(R0,A,p);
+		R0,R1 := MontCSwap(R0,R1,b);
+	end for;
+	return R0;
+
+end function;
+
+// test function
+test_MONT := function()
+
+	p :=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff43;
+	A := -61370;
+	B := 1;
+
+	P := RandMontgomeryPoint(A,B,p);
+	Q := MontDbl(P,A,p);
+	R := MontAdd(P,Q,P,p);
+	S := MontMul(P,3,A,p);
+	R := MontAffine(P,p);
+	S := MontAffine(P,p);
+	if R eq S then
+		print "test passed";
+		return 0;
+	else
+		return -1;
+	end if;
+
+end function;
+
+
+
