@@ -22,7 +22,7 @@ printPointxy := function(P)
 end function;
 
 // Compute right side of the equation y^2 = (Ax^2-1)/(dx^2-1), p is the order of the field.
-EdwardsRHS := function (A,d,p)
+EdwardsRHS := function (P,A,d,p)
 	F:=GF(p);
 	return (F!(A*P^2-1))*((F!(d*P^2-1))^(-1));
 end function;
@@ -44,30 +44,30 @@ RandEdwardsPoint := function(A,d,p)
 end function;
 
 // (x,y,z) -> (x/z,y/z,1)
-EdwAffine := function(X,p)
+EdwAffine := function(P,p)
 
-	Z := Modinv(Integers()!X[3],p);
-	X[1] := X[1]*Z;
-	X[2] := X[2]*Z;
-	X[3] := X[3]*Z;
-	return X;
+	Z := Modinv(Integers()!P[3],p);
+	P[1] := P[1]*Z;
+	P[2] := P[2]*Z;
+	P[3] := P[3]*Z;
+	return P;
 
 end function;
 
-// given two points X,Y, return X+Y
-EdwAdd := function(X,Y,A,d,p)
+// given two points P,Q, return P+Q
+EdwAdd := function(P,Q,A,d,p)
 
 	F := GF(p);
 	R := [F!0,F!0,F!0];
 
-	a := X[3]*Y[3];
+	a := P[3]*Q[3];
 	b := a^2;
-	c := X[1]*Y[1];
-	d := X[2]*Y[2];
+	c := P[1]*Q[1];
+	d := P[2]*Q[2];
 	e := d*c*d;
 	f := b-e;
 	g := b+e;
-	R[1] := f*a*((X[1]+X[2])*(Y[1]+Y[2])-c-d);
+	R[1] := f*a*((P[1]+P[2])*(Q[1]+Q[2])-c-d);
     R[2] := a*g*(d-A*c);
     R[3] := f*g;
 
@@ -75,18 +75,18 @@ EdwAdd := function(X,Y,A,d,p)
 
 end function;
 
-// Given a point X, return 2X
-EdwDbl := function(X,A,p)
+// Given a point P, return 2P
+EdwDbl := function(P,A,p)
 
 	F:=GF(p);
 	R := [F!0,F!0,F!0];
 
-	b := (X[1]+X[2])^2;
-	c := X[1]^2;
-	d := X[2]^2;
+	b := (P[1]+P[2])^2;
+	c := P[1]^2;
+	d := P[2]^2;
 	e := A*c;
 	f := e+d;
-	h := X[3]^2;
+	h := P[3]^2;
 	j := f-2*h;
 	R[1] := (b-c-d)*j;
 	R[2] := f*(e-d);
@@ -95,20 +95,20 @@ EdwDbl := function(X,A,p)
 	return EdwAffine(R,p);
 end function;
 
-// Given a point X, return -X
-EdwNeg := function(X,p)
+// Given a point P, return -P
+EdwNeg := function(P,p)
 	
 	F:=GF(p);
-	X[1] := F!(-X[1]);
-	return X;
+	P[1] := F!(-P[1]);
+	return P;
 end function;
 
-// given two points X,Y, return X-Y
-EdwSub := function(X,Y,A,d,p)
+// given two points P,Q, return P-Q
+EdwSub := function(P,Q,A,d,p)
 	
 	F:=GF(p);
-	Y := EdwNeg(Y,p);
-	return EdwAdd(X,Y,A,d,p);
+	Q := EdwNeg(Q,p);
+	return EdwAdd(P,Q,A,d,p);
 end function;
 
 // given a point P and a scalar n return nP
@@ -138,16 +138,16 @@ test_EDW := function()
 	d:= 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3;
 
 	P := RandEdwardsPoint(A,d,p);
-	Q := EdwDbl();
-	R := EdwAdd();
-	S := EdwMul();
-	R := EdwAffine();
-	S := EdwAffine();
+	Q := EdwDbl(P,A,p);
+	R := EdwAdd(P,Q,A,d,p);
+	S := EdwMul(P,3,A,d,p);
+	R := EdwAffine(P,p);
+	S := EdwAffine(P,p);
 	if R eq S then
-		print "test passed"
+		print "test passed";
 		return 0;
 	else
 		return -1;
-	endif;
+	end if;
 
 end function;
