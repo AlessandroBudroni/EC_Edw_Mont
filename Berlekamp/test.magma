@@ -1,0 +1,17 @@
+load"berlekamp.magma";
+for i in [1..1000] do
+	p:=RandomPrime(4);
+	q:=p^(Random([2..10]));
+	P<x>:=PolynomialRing(GF(q));
+	m:=Random([2..20]);
+	c:=[Random(GF(q)): i in [1..m]];
+	f:=P!c;
+	while Degree(P!f) lt 1 do
+		m:=Random([2..20]);
+		c:=[Random(q-1): i in [1..m]];
+	f:=P!c;
+	end while; 
+	if Berlekamp(f) ne Factorization(f) then 
+		printf "\nTest failed: f: %o q: %o\n", f, q;
+	end if;
+end for;

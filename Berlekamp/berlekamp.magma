@@ -1,0 +1,118 @@
+// Berlekamp Algorithm
+
+
+
+function BerFact(f,q);
+
+	P<x>:=PolynomialRing(GF(q));
+	f:=f;
+	n := Degree(f);
+	PO:=[];
+	F:=[];
+	B:=[];		
+
+	if n eq 1 then return [f]; end if;
+
+	for i in [1..n] do                                              // genero la matrice B
+			B[i]:=Coefficients((x^(q*(i-1))) mod f);
+			B[i]:=B[i] cat [0:j in [1..(n-#B[i])]];
+			B[i][i]:=B[i][i]-1;                                     // sottraggo la matrice identità I
+	end for;
+
+	BI:=Matrix(GF(q),n,n,&cat B);                                   //trasformo in matrice
+	
+	k:=n-Rank(BI);                                                  // calcolo il numero di fattori
+
+	if k eq 1 then return [f]; end if;                              // return f se è irriducibile
+
+	C:=Basis(Kernel(BI));                                           // calcolo la base del Kernel
+	
+			BA:=[[]:i in [1..k]];
+	for i in [1..k] do                                              // copio i vettori in sequenze
+		BA[i]:=[C[i][j]: j in [1..n]];
+	end for;
+
+	for i in [1..(k-1)] do                                          // casto i poli della base
+		PO[i]:=P!BA[i+1];
+	end for;
+
+	F:={f};                                                         // fattori temporanei
+	i:=1;
+	while #F ne k do                                                // trovo i fattori
+		F:={GCD(g,PO[i]-c):c in GF(q),g in F} diff {1};
+		i:=i+1;
+	end while;
+
+	return Setseq(F);                                               
+
+end function;
+
+
+
+function Berlchoise(f,q)
+
+	P<x>:=PolynomialRing(GF(q));
+	f:=f;
+	n:=Degree(f);
+	F:=[];
+	df:=Derivative(f);
+
+	if n eq 1 then F:=[f];                                          // controllo se il grado è 1 e quindi irriducibile
+
+	elif GCD(f,df) eq f then                                        // secondo controllo
+		
+		H:=Berlchoise(Root(f,Characteristic(GF(q))),q);
+		
+		for i in [1..Characteristic(GF(q))] do
+			F:=F cat H;  
+		end for;
+
+	elif ((GCD(f,df) ne f) and (GCD(f,df) ne 1)) then               // terzo controllo
+
+		F:= Berlchoise(GCD(f,df),q) cat BerFact(f div GCD(f,df),q);
+
+	else   F:= BerFact(f,q);                                        // non ci sono radici doppie, quindi fattorizza con l'algoritmo di Berlekamp
+
+	end if;
+
+	return F;
+
+end function;
+
+
+
+
+
+function Berlekamp(f)
+	
+	P:=Parent(f);
+	q:=#Parent(LeadingCoefficient(P!f));
+	S:=[];
+			
+	if (Degree(P!f) eq 0) or (Degree(P!f) eq -1) then               // controllo se l'input sia una costante
+		return "The input is a costant."; 
+	end if;
+
+	f:=f/LeadingCoefficient(f);                                     // rendo il polinomio monico
+	F:=Berlchoise(f,q);                                             // fattorizzo
+
+	m:=1;								// sistemo l'output con tutte le cardinalità
+	while #F ne 0 do
+		k:=0;
+		for i in [1..#F] do
+			if F[1] eq F[i] then k:=k+1; end if;
+		end for;
+
+		
+		S[m]:=<F[1],k>;
+		m:=m+1;
+		l:=F[1];
+		for i in [1..k] do F:=Exclude(F,l); 		
+		end for;
+		
+	end while;
+
+	return Sort(S);
+
+end function;
+
