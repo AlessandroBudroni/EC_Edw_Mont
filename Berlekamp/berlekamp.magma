@@ -1,46 +1,70 @@
-// Berlekamp Algorithm
+/**
+ *
+ * LICENSE
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
+// Berlekamp algorithm, factorising polynomials over finite fields
 
 
 function BerFact(f,q);
 
 	P<x>:=PolynomialRing(GF(q));
-	f:=f;
+	f := f;
 	n := Degree(f);
-	PO:=[];
-	F:=[];
-	B:=[];		
+	PO := [];
+	F := [];
+	B := [];		
 
-	if n eq 1 then return [f]; end if;
+	if n eq 1 then
+		return [f];
+	end if;
 
-	for i in [1..n] do                                              // genero la matrice B
+	for i in [1..n] do                                              // generate matrix B
 			B[i]:=Coefficients((x^(q*(i-1))) mod f);
 			B[i]:=B[i] cat [0:j in [1..(n-#B[i])]];
-			B[i][i]:=B[i][i]-1;                                     // sottraggo la matrice identità I
+			B[i][i]:=B[i][i]-1;                                     // subtract identity matrix I
 	end for;
 
-	BI:=Matrix(GF(q),n,n,&cat B);                                   //trasformo in matrice
+	BI := Matrix(GF(q),n,n,&cat B);
+	k := n- Rank(BI);                                               // compute number of factors
+
+	if k eq 1 then                                                  // return f if it is irriducible
+		return [f];
+	end if;
+
+	C := Basis(Kernel(BI));                                         // compute basis of the Kernel
 	
-	k:=n-Rank(BI);                                                  // calcolo il numero di fattori
-
-	if k eq 1 then return [f]; end if;                              // return f se è irriducibile
-
-	C:=Basis(Kernel(BI));                                           // calcolo la base del Kernel
-	
-			BA:=[[]:i in [1..k]];
-	for i in [1..k] do                                              // copio i vettori in sequenze
-		BA[i]:=[C[i][j]: j in [1..n]];
+	BA := [];
+	for i in [1..k] do                                              // copy vectors in sequences
+		BA[i] := ElementToSequence(C[i]);
 	end for;
 
-	for i in [1..(k-1)] do                                          // casto i poli della base
-		PO[i]:=P!BA[i+1];
+	for i in [1..(k-1)] do                                          // cast polynomials of the basis
+		PO[i] := P!BA[i+1];
 	end for;
 
-	F:={f};                                                         // fattori temporanei
-	i:=1;
-	while #F ne k do                                                // trovo i fattori
-		F:={GCD(g,PO[i]-c):c in GF(q),g in F} diff {1};
-		i:=i+1;
+	F := {f};                                                       // temp factors
+	i := 1;
+	while #F ne k do                                                // find factors
+		F := {GCD(g,PO[i]-c):c in GF(q),g in F} diff {1};
+		i := i+1;
 	end while;
 
 	return Setseq(F);                                               
@@ -48,31 +72,25 @@ function BerFact(f,q);
 end function;
 
 
-
 function Berlchoise(f,q)
 
-	P<x>:=PolynomialRing(GF(q));
-	f:=f;
-	n:=Degree(f);
-	F:=[];
-	df:=Derivative(f);
+	P<x> := PolynomialRing(GF(q));
+	f := f;
+	n := Degree(f);
+	F := [];
+	df := Derivative(f);
 
-	if n eq 1 then F:=[f];                                          // controllo se il grado è 1 e quindi irriducibile
-
-	elif GCD(f,df) eq f then                                        // secondo controllo
-		
-		H:=Berlchoise(Root(f,Characteristic(GF(q))),q);
-		
+	if n eq 1 then
+		F := [f];                                         		    // check if the degree is 1, so it is irreducible
+	elif GCD(f,df) eq f then                                        // second check
+		H := Berlchoise(Root(f,Characteristic(GF(q))),q);
 		for i in [1..Characteristic(GF(q))] do
-			F:=F cat H;  
+			F := F cat H;  
 		end for;
-
-	elif ((GCD(f,df) ne f) and (GCD(f,df) ne 1)) then               // terzo controllo
-
-		F:= Berlchoise(GCD(f,df),q) cat BerFact(f div GCD(f,df),q);
-
-	else   F:= BerFact(f,q);                                        // non ci sono radici doppie, quindi fattorizza con l'algoritmo di Berlekamp
-
+	elif ((GCD(f,df) ne f) and (GCD(f,df) ne 1)) then               // third  check
+		F := Berlchoise(GCD(f,df),q) cat BerFact(f div GCD(f,df),q);
+	else 
+		F := BerFact(f,q);                                         	// there are not multiple roots, then factorise
 	end if;
 
 	return F;
@@ -80,36 +98,33 @@ function Berlchoise(f,q)
 end function;
 
 
-
-
-
 function Berlekamp(f)
 	
-	P:=Parent(f);
-	q:=#Parent(LeadingCoefficient(P!f));
-	S:=[];
+	P := Parent(f);
+	q := #Parent(LeadingCoefficient(P!f));
+	S := [];
 			
-	if (Degree(P!f) eq 0) or (Degree(P!f) eq -1) then               // controllo se l'input sia una costante
+	if (Degree(P!f) eq 0) or (Degree(P!f) eq -1) then               // check if the input is a constant
 		return "The input is a costant."; 
 	end if;
 
-	f:=f/LeadingCoefficient(f);                                     // rendo il polinomio monico
-	F:=Berlchoise(f,q);                                             // fattorizzo
+	f := f/LeadingCoefficient(f);                                     // make polynomial monic
+	F := Berlchoise(f,q);                                             // factorise
 
-	m:=1;								// sistemo l'output con tutte le cardinalità
+	m := 1;															// organise output acording with cardinalities
 	while #F ne 0 do
-		k:=0;
+		k := 0;
 		for i in [1..#F] do
-			if F[1] eq F[i] then k:=k+1; end if;
+			if F[1] eq F[i] then
+				k:=k+1;
+			end if;
 		end for;
-
-		
-		S[m]:=<F[1],k>;
-		m:=m+1;
-		l:=F[1];
-		for i in [1..k] do F:=Exclude(F,l); 		
+		S[m] := <F[1],k>;
+		m := m+1;
+		l := F[1];
+		for i in [1..k] do
+			F:=Exclude(F,l); 		
 		end for;
-		
 	end while;
 
 	return Sort(S);
